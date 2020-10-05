@@ -170,8 +170,16 @@
         allowsEditing = [(NSNumber*)allowsEditingValue boolValue];
     }
     pickerController.allowsEditing = allowsEditing;
-
-    [self.viewController presentViewController:pickerController animated:YES completion:nil];
+    if([NSThread isMainThread]) {
+        [self.viewController presentViewController:pickerController animated:YES completion:nil];
+    }else {
+        dispatch_sync(dispatch_get_main_queue(), ^{
+            [self.viewController presentViewController:pickerController animated:YES completion:nil];
+        });
+    }
+    
+    
+    
 }
 
 - (void)pickContact:(CDVInvokedUrlCommand *)command
@@ -596,18 +604,19 @@
     addressBook = ABAddressBookCreateWithOptions(NULL, &error);
     // NSLog(@"addressBook access: %lu", status);
     ABAddressBookRequestAccessWithCompletion(addressBook, ^(bool granted, CFErrorRef error) {
-            // callback can occur in background, address book must be accessed on thread it was created on
-            dispatch_sync(dispatch_get_main_queue(), ^{
-                if (error) {
-                    workerBlock(NULL, [[CDVAddressBookAccessError alloc] initWithCode:UNKNOWN_ERROR]);
-                } else if (!granted) {
-                    workerBlock(NULL, [[CDVAddressBookAccessError alloc] initWithCode:PERMISSION_DENIED_ERROR]);
-                } else {
-                    // access granted
-                    workerBlock(addressBook, [[CDVAddressBookAccessError alloc] initWithCode:UNKNOWN_ERROR]);
-                }
-            });
+                // callback can occur in background, address book must be accessed on thread it was created on
+        dispatch_sync(dispatch_get_main_queue(), ^{
+            if (error) {
+                workerBlock(NULL, [[CDVAddressBookAccessError alloc] initWithCode:UNKNOWN_ERROR]);
+            } else if (!granted) {
+                workerBlock(NULL, [[CDVAddressBookAccessError alloc] initWithCode:PERMISSION_DENIED_ERROR]);
+            } else {
+                // access granted
+                workerBlock(addressBook, [[CDVAddressBookAccessError alloc] initWithCode:UNKNOWN_ERROR]);
+            }
         });
+    });
 }
+
 
 @end
